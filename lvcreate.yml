@@ -1,0 +1,64 @@
+---
+- name: playbooks for lvm
+  hosts: servers
+  vars_files:
+    - vars.yml
+  become: yes
+  become_user: root
+  tasks:    
+    - name: Check absence of logical volume
+      ansible.builtin.command: "lvdisplay /dev/mapper/{{ vg_name }}-{{ lv_name }}"
+      no_log: True
+      changed_when: False
+      register: lvdisplay
+      failed_when: lvdisplay.rc == 0
+    
+    - name: Check mount point does not exist
+      command: "/bin/df -h {{ mount_point }}"
+      changed_when: False
+      register: mount_var
+      failed_when: mount_var.rc == 0
+
+    - name: check if VG size is greater than required lvm size
+      debug: 
+        msg: "output"
+      failed_when: ansible_lvm.vgs.datavg.free_g|int <  lv_size
+
+    - name: lvcreate on "/dev/mapper/{{ vg_name }}-{{ lv_name }}"
+      lvol:
+        vg: "{{ vg_name }}"
+        lv: "{{ lv_name }}"
+        size: "{{ lv_size }}g"
+
+    - name: Ansible check directory.
+      stat:
+        path: "{{ mount_point }}" 
+      register: localdir
+
+    - name: "Ansible Create directory if not exists"
+      file:
+        path: "{{ mount_point }}"
+        state: directory
+        mode: 0755
+        group: "{{ group }}"
+        owner: "{{ owner }}"
+      when: localdir.stat.exists == false
+
+    - name: create a file system
+      filesystem:
+        fstype: xfs
+        dev: "/dev/mapper/{{ vg_name }}-{{ lv_name }}"
+
+    - name: mount in /etc/fstab
+      mount:
+        name: "{{ mount_point }}"
+        src: "/dev/mapper/{{ vg_name }}-{{ lv_name }}"
+        fstype: "{{ file_system }}"
+        state: mounted
+
+    - name: Get info about the {{ mount_point }}" file system
+      command: "/bin/df -h {{ mount_point }}"
+      register: cmd_output
+
+    - debug:
+        msg: ' {{ mount_point }} is created: {{ cmd_output.stdout }}'

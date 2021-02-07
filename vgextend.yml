@@ -1,0 +1,56 @@
+---
+- name: playbooks for lvm
+  hosts: servers
+  vars_files:
+    - vars.yml
+  become: yes
+  become_user: root
+  tasks:
+
+    - name: Get info about the {{ vg_name }}" before making any changes
+      command: "vgs {{ vg_name }}"
+      register: cmd_output
+
+    - debug:
+        msg: ' {{ mount_point }} is created: {{ cmd_output.stdout }}'
+
+  ## read the disk information
+    - name: Read device information always use unit when probing
+      parted: 
+        device: "{{ disk_name }}"
+        unit: MiB
+      register: disk_info
+
+    - name: 
+      parted:
+        device: "{{ disk_name }}"
+        number: "{{ item.num }}"
+        state: present
+      with_items:
+      - "{{ disk_info.partitions }}"
+
+    - debug:
+        msg: "it fails in case we have the partitions on the disk"
+      failed_when: disk_info.partitions|length > 0
+
+    - name: Extend only new  partition, do not harm existing partition
+      parted:
+        device: "{{ disk_name }}"
+        number: "1"
+        part_type: primary
+        flags: [ lvm ]
+        state: present
+        part_end: "100%"
+
+    - name: exend the volume group given in vg_name
+      lvg:
+        vg: "{{ vg_name }}" ## Name of Volume group. if volume group exists, it does nothing
+        pvs: "{{ pvs_name }}" 
+          ## Physical Volume created using partition 
+          ##eg (/dev/sdb1 or /dev/sdc1)
+    - name: Get info about the {{ vg_name }}" after the changes
+      command: "vgs {{ vg_name }}"
+      register: cmd_output
+
+    - debug:
+        msg: ' {{ mount_point }} is created: {{ cmd_output.stdout }}'

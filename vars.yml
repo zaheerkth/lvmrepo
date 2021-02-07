@@ -1,0 +1,12 @@
+---
+# in the above example, this would be vars/external_vars.yml
+vg_name: datavg
+lv_name: datalv3
+lv_size : 0.5
+mount_point: /mnt/data3
+pvs_name: /dev/sdb1
+file_system: xfs
+owner: root
+group: root
+disk_name: /dev/sdb
+
