@@ -5,7 +5,17 @@
     - vars.yml
   become: yes
   become_user: root
-  tasks:    
+  tasks:
+    - name: Get info about the {{ mount_point }}" file system before lvm creation
+      command: "{{ item }}"
+      with_items:
+        - "/bin/df -h {{ mount_point }}"
+        - "ls -ld {{ mount_point }}"
+      register: cmd_output
+
+    - debug:
+        msg: "{{ cmd_output.results|map(attribute='stdout_lines')|list }}"
+
     - name: Check absence of logical volume
       ansible.builtin.command: "lvdisplay /dev/mapper/{{ vg_name }}-{{ lv_name }}"
       no_log: True
@@ -30,20 +40,6 @@
         lv: "{{ lv_name }}"
         size: "{{ lv_size }}g"
 
-    - name: Ansible check directory.
-      stat:
-        path: "{{ mount_point }}" 
-      register: localdir
-
-    - name: "Ansible Create directory if not exists"
-      file:
-        path: "{{ mount_point }}"
-        state: directory
-        mode: 0755
-        group: "{{ group }}"
-        owner: "{{ owner }}"
-      when: localdir.stat.exists == false
-
     - name: create a file system
       filesystem:
         fstype: xfs
@@ -56,9 +52,20 @@
         fstype: "{{ file_system }}"
         state: mounted
 
-    - name: Get info about the {{ mount_point }}" file system
-      command: "/bin/df -h {{ mount_point }}"
+    - name: "Ansible Create directory if not exists"
+      file:
+        path: "{{ mount_point }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ owner }}"
+        group: "{{ group }}"
+
+    - name: Get info about the {{ mount_point }}" file system after lvm creation
+      command: "{{ item }}"
+      with_items:
+        - "/bin/df -h {{ mount_point }}"
+        - "ls -ld {{ mount_point }}"
       register: cmd_output
 
     - debug:
-        msg: ' {{ mount_point }} is created: {{ cmd_output.stdout }}'
+        msg: "{{ cmd_output.results|map(attribute='stdout_lines')|list }}"

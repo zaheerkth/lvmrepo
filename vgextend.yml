@@ -48,7 +48,7 @@
         pvs: "{{ pvs_name }}" 
           ## Physical Volume created using partition 
           ##eg (/dev/sdb1 or /dev/sdc1)
-    - name: Get info about the {{ vg_name }}" after the changes
+    - name: Get info about the {{ vg_name }}" after the changes   
       command: "vgs {{ vg_name }}"
       register: cmd_output
 
